@@ -81,7 +81,9 @@ pub async fn retry_history_entry_transcription(
         return Err("Recording has no audio samples".to_string());
     }
 
-    transcription_manager.initiate_model_load();
+    if !crate::cloud_stt::uses_cloud(&crate::settings::get_settings(&app)) {
+        transcription_manager.initiate_model_load();
+    }
 
     let tm = Arc::clone(&transcription_manager);
     let transcription = tauri::async_runtime::spawn_blocking(move || tm.transcribe(samples))

@@ -400,9 +400,14 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
+        // A cloud provider transcribes the recording; no local model needed.
+        let uses_cloud = crate::cloud_stt::uses_cloud(&get_settings(app));
+
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
-        tm.initiate_model_load();
+        if !uses_cloud {
+            tm.initiate_model_load();
+        }
         let rm_clone = Arc::clone(&rm);
         std::thread::spawn(move || {
             if let Err(e) = rm_clone.preload_vad() {
@@ -413,7 +418,7 @@ impl ShortcutAction for TranscribeAction {
 
         // Don't open the mic if nothing can transcribe the recording; the load
         // kicked off above fails and reports why.
-        if !tm.is_model_loaded() {
+        if !uses_cloud && !tm.is_model_loaded() {
             let selected_model = get_settings(app).selected_model;
             if let Err(e) = app
                 .state::<Arc<ModelManager>>()
@@ -442,10 +447,11 @@ impl ShortcutAction for TranscribeAction {
         // Use the app-facing model capability as the single pre-recording source
         // for live streaming decisions. Unknown support is represented as false
         // until the model registry is updated by discovery or runtime load.
-        let model_supports_streaming = selected_model_info
-            .as_ref()
-            .map(|m| m.supports_streaming)
-            .unwrap_or(false);
+        let model_supports_streaming = !uses_cloud
+            && selected_model_info
+                .as_ref()
+                .map(|m| m.supports_streaming)
+                .unwrap_or(false);
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
         } else if model_supports_streaming {
@@ -460,7 +466,9 @@ impl ShortcutAction for TranscribeAction {
             streaming: model_supports_streaming,
             long_form: false,
         };
-        if live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None {
+        if !uses_cloud
+            && live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None
+        {
             tm.start_stream();
         }
         let plan_elapsed = plan_started.elapsed();

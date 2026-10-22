@@ -920,12 +920,23 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
-        let outcome = match live {
-            Some(outcome) => outcome,
-            None => self.decode_batch(audio)?,
-        };
         let settings = get_settings(&self.app_handle);
-        let final_result = finish_text(outcome, &settings);
+        let final_result = if crate::cloud_stt::uses_cloud(&settings) {
+            let raw = crate::cloud_stt::transcribe(&settings, &audio)?;
+            let output_language = match settings.selected_language.as_str() {
+                "" | "auto" => OutputLanguageEvidence::Unknown,
+                lang => OutputLanguageEvidence::UserSelected(lang.to_string()),
+            };
+            // Cloud providers get custom words in their prompt/keyterms, but
+            // not all honour them, so still apply fuzzy correction.
+            post_process_transcription_text(raw, &settings, false, &output_language, &[])
+        } else {
+            let outcome = match live {
+                Some(outcome) => outcome,
+                None => self.decode_batch(audio)?,
+            };
+            finish_text(outcome, &settings)
+        };
 
         let translation_note = if settings.translate_to_english {
             " (translated)"

@@ -626,6 +626,27 @@
           "details": "Handy का लोकल स्पीच-टू-टेक्स्ट transcribe.cpp और ggml पर आधारित है. Georgi Gerganov और योगदान देने वालों के शानदार काम के लिए धन्यवाद."
         }
       }
+    },
+    "cloudTranscription": {
+      "title": "Transcription",
+      "local": "Local model (on device)",
+      "provider": {
+        "title": "Transcription Provider",
+        "description": "Transcribe on this device with the selected local model, or send recordings to a cloud speech-to-text API."
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "Root of an OpenAI-compatible API; requests go to {base}/audio/transcriptions."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
+        "placeholder": "Enter API key"
+      },
+      "model": {
+        "title": "Model",
+        "description": "Pick a suggested model or type any model id the provider supports."
+      }
     }
   },
   "footer": {

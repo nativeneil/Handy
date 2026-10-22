@@ -8,6 +8,7 @@ mod catalog;
 mod chinese_script;
 pub mod cli;
 mod clipboard;
+mod cloud_stt;
 mod commands;
 pub mod engine_supervisor;
 mod helpers;
@@ -680,6 +681,11 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_format_setting,
             shortcut::change_post_process_api_key_setting,
+            shortcut::get_cloud_transcription_providers,
+            shortcut::set_transcription_provider,
+            shortcut::change_transcription_api_key_setting,
+            shortcut::change_transcription_model_setting,
+            shortcut::change_transcription_base_url_setting,
             shortcut::change_post_process_model_setting,
             shortcut::set_post_process_provider,
             shortcut::fetch_post_process_models,
