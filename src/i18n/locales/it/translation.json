@@ -86,7 +86,8 @@
         "checkFailed": "Impossibile verificare i permessi. Riprova.",
         "requestFailed": "Impossibile richiedere il permesso. Riprova."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "Personalizzato",
@@ -117,7 +118,8 @@
     },
     "cancel": "Annulla",
     "cancelDownload": "Annulla download",
-    "legacy": "Obsoleto"
+    "legacy": "Obsoleto",
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -625,6 +627,28 @@
       "whatsNewUpdates": {
         "label": "Mostra novità",
         "description": "Mostra le note di rilascio dopo gli aggiornamenti di Handy"
+      }
+    },
+    "cloudTranscription": {
+      "title": "Transcription",
+      "local": "Local model (on device)",
+      "provider": {
+        "title": "Transcription Provider",
+        "description": "Transcribe on this device with the selected local model, or send recordings to a cloud speech-to-text API."
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "API endpoint. For Azure, your Speech resource endpoint (https://NAME.cognitiveservices.azure.com); for Custom, an OpenAI-compatible base ({base}/audio/transcriptions)."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
+      },
+      "model": {
+        "title": "Model",
+        "description": "Pick a suggested model or type any model id the provider supports."
       }
     }
   },

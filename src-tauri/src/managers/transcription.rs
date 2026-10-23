@@ -664,6 +664,10 @@ impl TranscriptionManager {
 
     /// Kicks off the model loading in a background thread if it's not already loaded
     pub fn initiate_model_load(&self) {
+        // A cloud provider transcribes instead; keep the local model unloaded.
+        if crate::cloud_stt::uses_cloud(&get_settings(&self.app_handle)) {
+            return;
+        }
         let mut is_loading = self.is_loading.lock().unwrap();
         if *is_loading {
             return;
@@ -885,8 +889,15 @@ impl TranscriptionManager {
 
     /// Transcribe a whole clip in batch: a re-transcribed history entry, or
     /// a file from the CLI.
+    /// Uses the cloud provider when one is selected.
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
-        self.complete(Instant::now(), audio, None)
+        self.complete(Instant::now(), audio, None, true)
+    }
+
+    /// Batch-transcribe with the loaded local model, ignoring any cloud
+    /// provider selection (CLI runs that name a model).
+    pub fn transcribe_local(&self, audio: Vec<f32>) -> Result<String> {
+        self.complete(Instant::now(), audio, None, false)
     }
 
     /// Transcribe a finished recording: what its live decode produced, or a
@@ -894,7 +905,7 @@ impl TranscriptionManager {
     pub fn transcribe_recording(&self, samples: Vec<f32>) -> Result<String> {
         let started = Instant::now();
         let live = self.finalize_live(samples.len())?;
-        self.complete(started, samples, live)
+        self.complete(started, samples, live, true)
     }
 
     /// The final text of one transcription, from its live result or else a
@@ -904,6 +915,7 @@ impl TranscriptionManager {
         started: Instant,
         audio: Vec<f32>,
         live: Option<RunOutcome>,
+        allow_cloud: bool,
     ) -> Result<String> {
         #[cfg(debug_assertions)]
         if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
@@ -920,12 +932,22 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
-        let outcome = match live {
-            Some(outcome) => outcome,
-            None => self.decode_batch(audio)?,
-        };
         let settings = get_settings(&self.app_handle);
-        let final_result = finish_text(outcome, &settings);
+        let final_result = if allow_cloud && crate::cloud_stt::uses_cloud(&settings) {
+            let raw = crate::cloud_stt::transcribe(&settings, &audio)?;
+            let hint = crate::cloud_stt::request_language(&settings);
+            let output_language =
+                resolve_output_language_evidence(&settings, hint.as_deref(), &[], false);
+            // Cloud providers get custom words in their prompt/keyterms, but
+            // not all honour them, so still apply fuzzy correction.
+            post_process_transcription_text(raw, &settings, false, &output_language, &[])
+        } else {
+            let outcome = match live {
+                Some(outcome) => outcome,
+                None => self.decode_batch(audio)?,
+            };
+            finish_text(outcome, &settings)
+        };
 
         let translation_note = if settings.translate_to_english {
             " (translated)"

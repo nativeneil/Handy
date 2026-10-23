@@ -4,6 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import { commands } from "@/bindings";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
 import { useModelStore } from "../../stores/modelStore";
+import { useSettings } from "../../hooks/useSettings";
+import { useCloudSttProviders } from "../../hooks/useCloudSttProviders";
 import ModelStatusButton from "./ModelStatusButton";
 import ModelDropdown from "./ModelDropdown";
 import DownloadProgressDisplay from "./DownloadProgressDisplay";
@@ -34,6 +36,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     selectModel,
   } = useModelStore();
 
+  const { updateSetting } = useSettings();
+  const { activeProvider } = useCloudSttProviders();
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
   const [modelError, setModelError] = useState<string | null>(null);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
@@ -142,6 +146,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     setPendingModelId(modelId);
     setModelError(null);
     setShowModelDropdown(false);
+    // Picking a local model here means "transcribe locally".
+    if (activeProvider)
+      await updateSetting("transcription_provider_id", "local");
     const success = await selectModel(modelId);
     if (!success) {
       setPendingModelId(null);
@@ -152,6 +159,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   };
 
   const getModelDisplayText = (): string => {
+    if (activeProvider) {
+      return t("modelSelector.cloud", { provider: activeProvider.label });
+    }
     const verifyingKeys = Object.keys(verifyingModels);
     if (verifyingKeys.length > 0) {
       if (verifyingKeys.length === 1) {
@@ -212,6 +222,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
 
   // Derive display status from model status + store state
   const getDisplayStatus = (): ModelStatus => {
+    if (activeProvider) return "ready";
     if (Object.keys(verifyingModels).length > 0) return "verifying";
     if (Object.keys(downloadProgress).length > 0) return "downloading";
     return modelStatus;

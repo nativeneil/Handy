@@ -339,7 +339,7 @@ pub enum VadBackend {
     Earshot,
 }
 
-#[derive(Clone, Serialize, Deserialize, Type)]
+#[derive(Clone, Default, Serialize, Deserialize, Type)]
 #[serde(transparent)]
 pub(crate) struct SecretMap(HashMap<String, String>);
 
@@ -457,6 +457,15 @@ pub struct AppSettings {
     pub auto_submit: bool,
     #[serde(default)]
     pub auto_submit_key: AutoSubmitKey,
+    /// "local" for the on-device model, else a `cloud_stt` provider id.
+    #[serde(default = "default_transcription_provider_id")]
+    pub transcription_provider_id: String,
+    #[serde(default)]
+    pub transcription_api_keys: SecretMap,
+    #[serde(default)]
+    pub transcription_models: HashMap<String, String>,
+    #[serde(default)]
+    pub transcription_base_urls: HashMap<String, String>,
     #[serde(default = "default_post_process_enabled")]
     pub post_process_enabled: bool,
     #[serde(default = "default_post_process_provider_id")]
@@ -672,6 +681,10 @@ fn default_app_language() -> String {
 
 fn default_show_tray_icon() -> bool {
     true
+}
+
+fn default_transcription_provider_id() -> String {
+    crate::cloud_stt::LOCAL_PROVIDER_ID.to_string()
 }
 
 fn default_post_process_provider_id() -> String {
@@ -993,6 +1006,10 @@ pub fn get_default_settings() -> AppSettings {
         auto_submit: default_auto_submit(),
         auto_submit_key: AutoSubmitKey::default(),
         post_process_enabled: default_post_process_enabled(),
+        transcription_provider_id: default_transcription_provider_id(),
+        transcription_api_keys: SecretMap::default(),
+        transcription_models: HashMap::new(),
+        transcription_base_urls: HashMap::new(),
         post_process_provider_id: default_post_process_provider_id(),
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),

@@ -1187,6 +1187,70 @@ pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<
     Ok(())
 }
 
+/// A per-provider cloud transcription setting.
+#[derive(Clone, Copy, Debug, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum TranscriptionProviderField {
+    ApiKey,
+    Model,
+    BaseUrl,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_cloud_transcription_providers() -> Vec<crate::cloud_stt::CloudSttProvider> {
+    crate::cloud_stt::PROVIDERS.to_vec()
+}
+
+/// Select "local" or a cloud provider id.
+#[tauri::command]
+#[specta::specta]
+pub fn set_transcription_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
+    if provider_id != crate::cloud_stt::LOCAL_PROVIDER_ID
+        && crate::cloud_stt::provider(&provider_id).is_none()
+    {
+        return Err(format!(
+            "Transcription provider '{}' not found",
+            provider_id
+        ));
+    }
+    let mut settings = settings::get_settings(&app);
+    // Choosing a cloud provider is a transcription source, like picking a model.
+    if provider_id != crate::cloud_stt::LOCAL_PROVIDER_ID {
+        settings.onboarding_completed = true;
+    }
+    settings.transcription_provider_id = provider_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_transcription_provider_setting(
+    app: AppHandle,
+    provider_id: String,
+    field: TranscriptionProviderField,
+    value: String,
+) -> Result<(), String> {
+    let provider = crate::cloud_stt::provider(&provider_id)
+        .ok_or_else(|| format!("Transcription provider '{}' not found", provider_id))?;
+    let mut settings = settings::get_settings(&app);
+    let map = match field {
+        TranscriptionProviderField::ApiKey => &mut *settings.transcription_api_keys,
+        TranscriptionProviderField::Model => &mut settings.transcription_models,
+        TranscriptionProviderField::BaseUrl if !provider.allow_base_url_edit => {
+            return Err(format!(
+                "Provider '{}' does not allow editing the base URL",
+                provider.label
+            ))
+        }
+        TranscriptionProviderField::BaseUrl => &mut settings.transcription_base_urls,
+    };
+    map.insert(provider_id, value.trim().to_string());
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn add_post_process_prompt(

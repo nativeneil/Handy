@@ -5,10 +5,13 @@ import { LanguageSelector } from "../LanguageSelector";
 import { TranslateToEnglish } from "../TranslateToEnglish";
 import { useModelStore } from "../../../stores/modelStore";
 import type { ModelInfo } from "@/bindings";
+import { useCloudSttProviders } from "../../../hooks/useCloudSttProviders";
 
 export const ModelSettingsCard: React.FC = () => {
   const { t } = useTranslation();
   const { currentModel, models } = useModelStore();
+  // A cloud provider has its own language setting in the Transcription group.
+  const { activeProvider } = useCloudSttProviders();
 
   const currentModelInfo = models.find((m: ModelInfo) => m.id === currentModel);
 
@@ -18,7 +21,7 @@ export const ModelSettingsCard: React.FC = () => {
   const hasAnySettings = showLanguageSelector || supportsTranslation;
 
   // Don't render anything if no model is selected or no settings available
-  if (!currentModel || !currentModelInfo || !hasAnySettings) {
+  if (activeProvider || !currentModel || !currentModelInfo || !hasAnySettings) {
     return null;
   }
 

@@ -86,7 +86,8 @@
         "checkFailed": "권한 확인에 실패했습니다. 다시 시도해주세요.",
         "requestFailed": "권한 요청에 실패했습니다. 다시 시도해주세요."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "사용자 정의",
@@ -117,7 +118,8 @@
       "translate": "영어로 번역",
       "streaming": "말하는 동안 실시간으로 음성 인식 결과를 표시"
     },
-    "legacy": "레거시"
+    "legacy": "레거시",
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -625,6 +627,28 @@
       "whatsNewUpdates": {
         "label": "새 소식 표시",
         "description": "Handy 업데이트 후 릴리스 노트를 표시합니다"
+      }
+    },
+    "cloudTranscription": {
+      "title": "Transcription",
+      "local": "Local model (on device)",
+      "provider": {
+        "title": "Transcription Provider",
+        "description": "Transcribe on this device with the selected local model, or send recordings to a cloud speech-to-text API."
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "API endpoint. For Azure, your Speech resource endpoint (https://NAME.cognitiveservices.azure.com); for Custom, an OpenAI-compatible base ({base}/audio/transcriptions)."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
+      },
+      "model": {
+        "title": "Model",
+        "description": "Pick a suggested model or type any model id the provider supports."
       }
     }
   },

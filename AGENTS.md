@@ -61,6 +61,7 @@ Handy is a cross-platform desktop speech-to-text application built with Tauri 2.
   - `model.rs` - Model downloading and management
   - `transcription.rs` - Speech-to-text processing pipeline
   - `history.rs` - Transcription history storage
+- `cloud_stt.rs` - Optional cloud speech-to-text (provider table + per-API adapters); add a provider by appending to `PROVIDERS`
 - `audio_toolkit/` - Low-level audio processing:
   - `audio/` - Recording sink (VAD, levels, live streaming feed), output devices, WAV I/O
   - `vad/` - Voice Activity Detection (Silero VAD)
@@ -95,6 +96,8 @@ Handy is a cross-platform desktop speech-to-text application built with Tauri 2.
 **Command-Event Architecture:** Frontend → Backend via Tauri commands; Backend → Frontend via events.
 
 **Pipeline Processing:** Audio → VAD → Whisper/Parakeet → Text output → Clipboard/Paste
+
+**Transcription backend:** `transcription_provider_id` is `"local"` (default, on-device model) or a `cloud_stt` provider id. `TranscriptionManager::complete` routes to `cloud_stt::transcribe` for cloud; `initiate_model_load` no-ops for cloud. The CLI's `--transcribe-file` always uses the local model (`transcribe_local`).
 
 **State Flow:** Zustand → Tauri Command → Rust State → Persistence (tauri-plugin-store)
 

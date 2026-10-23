@@ -86,7 +86,8 @@
         "checkFailed": "Kunne ikke tjekke tilladelser. Prøv igen.",
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "Brugerdefineret",
@@ -117,7 +118,8 @@
       "translation": "Kan oversætte til engelsk",
       "translate": "Oversæt",
       "streaming": "Viser live transskription, mens du taler"
-    }
+    },
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -625,6 +627,28 @@
           "description": "Højtydende tensor-bibliotek til maskinlæringsinferens på enheden",
           "details": "Handys lokale tale-til-tekst funktionalitet er bygget på transcribe.cpp og ggml. Tak for det fantastiske arbejde af Georgi Gerganov og bidragyderne."
         }
+      }
+    },
+    "cloudTranscription": {
+      "title": "Transcription",
+      "local": "Local model (on device)",
+      "provider": {
+        "title": "Transcription Provider",
+        "description": "Transcribe on this device with the selected local model, or send recordings to a cloud speech-to-text API."
+      },
+      "baseUrl": {
+        "title": "Base URL",
+        "description": "API endpoint. For Azure, your Speech resource endpoint (https://NAME.cognitiveservices.azure.com); for Custom, an OpenAI-compatible base ({base}/audio/transcriptions)."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
+      },
+      "model": {
+        "title": "Model",
+        "description": "Pick a suggested model or type any model id the provider supports."
       }
     }
   },

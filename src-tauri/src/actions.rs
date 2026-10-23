@@ -400,7 +400,11 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
-        // Load ASR model and VAD model in parallel
+        let settings = get_settings(app);
+        // A cloud provider transcribes the recording; no local model needed.
+        let uses_cloud = crate::cloud_stt::uses_cloud(&settings);
+
+        // Load ASR model (a no-op for cloud) and VAD model in parallel
         let kickoff_started = Instant::now();
         tm.initiate_model_load();
         let rm_clone = Arc::clone(&rm);
@@ -412,12 +416,19 @@ impl ShortcutAction for TranscribeAction {
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
-        // kicked off above fails and reports why.
-        if !tm.is_model_loaded() {
-            let selected_model = get_settings(app).selected_model;
+        // kicked off above fails and reports why. A cloud provider that can't
+        // run (no key, no endpoint) is reported now, before the user speaks.
+        if uses_cloud {
+            if let Err(e) = crate::cloud_stt::check_ready(&settings) {
+                warn!("Not starting recording: {}", e);
+                let _ = app.emit("transcription-error", e.to_string());
+                return;
+            }
+            crate::cloud_stt::prewarm(&settings);
+        } else if !tm.is_model_loaded() {
             if let Err(e) = app
                 .state::<Arc<ModelManager>>()
-                .get_model_path(&selected_model)
+                .get_model_path(&settings.selected_model)
             {
                 warn!("Not starting recording: no model can transcribe it ({})", e);
                 return;
@@ -432,7 +443,6 @@ impl ShortcutAction for TranscribeAction {
 
         // Get the microphone mode to determine audio feedback timing
         let plan_started = Instant::now();
-        let settings = get_settings(app);
         let is_always_on = settings.always_on_microphone;
 
         let selected_model_info = app
@@ -442,10 +452,11 @@ impl ShortcutAction for TranscribeAction {
         // Use the app-facing model capability as the single pre-recording source
         // for live streaming decisions. Unknown support is represented as false
         // until the model registry is updated by discovery or runtime load.
-        let model_supports_streaming = selected_model_info
-            .as_ref()
-            .map(|m| m.supports_streaming)
-            .unwrap_or(false);
+        let model_supports_streaming = !uses_cloud
+            && selected_model_info
+                .as_ref()
+                .map(|m| m.supports_streaming)
+                .unwrap_or(false);
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
         } else if model_supports_streaming {
@@ -460,7 +471,9 @@ impl ShortcutAction for TranscribeAction {
             streaming: model_supports_streaming,
             long_form: false,
         };
-        if live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None {
+        if !uses_cloud
+            && live_decode(expected_model, settings.long_form_chunking) != LiveDecode::None
+        {
             tm.start_stream();
         }
         let plan_elapsed = plan_started.elapsed();
