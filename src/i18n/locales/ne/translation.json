@@ -636,7 +636,7 @@
       },
       "baseUrl": {
         "title": "Base URL",
-        "description": "Root of an OpenAI-compatible API; requests go to {base}/audio/transcriptions."
+        "description": "API endpoint. For Azure, your Speech resource endpoint (https://NAME.cognitiveservices.azure.com); for Custom, an OpenAI-compatible base ({base}/audio/transcriptions)."
       },
       "apiKey": {
         "title": "API Key",

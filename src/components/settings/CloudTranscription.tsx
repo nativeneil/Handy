@@ -118,32 +118,40 @@ export const CloudTranscription: React.FC = () => {
             />
           </SettingContainer>
 
-          <SettingContainer
-            title={t("settings.cloudTranscription.model.title")}
-            description={t("settings.cloudTranscription.model.description")}
-            descriptionMode="tooltip"
-            layout="stacked"
-            grouped={true}
-          >
-            <ModelSelect
-              value={model}
-              options={modelOptions}
-              disabled={false}
-              placeholder={provider.default_model}
-              onSelect={(value) =>
-                run(
-                  commands.changeTranscriptionModelSetting(provider.id, value),
-                )
-              }
-              onCreate={(value) =>
-                run(
-                  commands.changeTranscriptionModelSetting(provider.id, value),
-                )
-              }
-              onBlur={() => {}}
-              className="flex-1 min-w-[380px]"
-            />
-          </SettingContainer>
+          {provider.default_model && (
+            <SettingContainer
+              title={t("settings.cloudTranscription.model.title")}
+              description={t("settings.cloudTranscription.model.description")}
+              descriptionMode="tooltip"
+              layout="stacked"
+              grouped={true}
+            >
+              <ModelSelect
+                value={model}
+                options={modelOptions}
+                disabled={false}
+                placeholder={provider.default_model}
+                onSelect={(value) =>
+                  run(
+                    commands.changeTranscriptionModelSetting(
+                      provider.id,
+                      value,
+                    ),
+                  )
+                }
+                onCreate={(value) =>
+                  run(
+                    commands.changeTranscriptionModelSetting(
+                      provider.id,
+                      value,
+                    ),
+                  )
+                }
+                onBlur={() => {}}
+                className="flex-1 min-w-[380px]"
+              />
+            </SettingContainer>
+          )}
         </>
       )}
     </SettingsGroup>

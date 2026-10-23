@@ -1164,8 +1164,28 @@ export type CloudSttApi =
  * `POST {base}/audio/transcriptions`, multipart (OpenAI, Groq, Mistral,
  * and any compatible server).
  */
-"open_ai" | "deepgram" | "eleven_labs" | "gemini"
-export type CloudSttProvider = { id: string; label: string; api: CloudSttApi; base_url: string; allow_base_url_edit: boolean; default_model: string; 
+"open_ai" | "deepgram" | "eleven_labs" | "gemini" | 
+/**
+ * xAI Grok Voice Transcribe: `POST {base}/stt`, multipart.
+ */
+"xai" | 
+/**
+ * AssemblyAI: upload, create transcript, poll.
+ */
+"assembly_ai" | 
+/**
+ * Azure Speech fast transcription (MAI-Transcribe) on a user's resource.
+ */
+"azure_speech" | 
+/**
+ * OpenRouter's unified `audio/transcriptions`, JSON with base64 audio.
+ */
+"open_router"
+export type CloudSttProvider = { id: string; label: string; api: CloudSttApi; base_url: string; allow_base_url_edit: boolean; 
+/**
+ * Empty when the API has no model choice.
+ */
+default_model: string; 
 /**
  * Suggested models for the picker; any model id can be typed.
  */
