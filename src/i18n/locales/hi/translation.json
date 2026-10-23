@@ -86,7 +86,8 @@
         "checkFailed": "अनुमतियां जांची नहीं जा सकीं. कृपया फिर से कोशिश करें.",
         "requestFailed": "अनुमति मांगी नहीं जा सकी. कृपया फिर से कोशिश करें."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "कस्टम",
@@ -117,7 +118,8 @@
       "translation": "अंग्रेज़ी में अनुवाद कर सकता है",
       "translate": "अनुवाद करें",
       "streaming": "बोलते समय लाइव ट्रांसक्रिप्शन दिखाता है"
-    }
+    },
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -641,7 +643,8 @@
       "apiKey": {
         "title": "API Key",
         "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
-        "placeholder": "Enter API key"
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
       },
       "model": {
         "title": "Model",

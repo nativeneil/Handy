@@ -4,6 +4,7 @@ import type {
   AppSettings as Settings,
   AudioDevice,
   PostProcessApiFormat,
+  TranscriptionProviderField,
 } from "@/bindings";
 
 interface UseSettingsReturn {
@@ -49,6 +50,11 @@ interface UseSettingsReturn {
     apiKey: string,
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
+  updateTranscriptionProviderSetting: (
+    field: TranscriptionProviderField,
+    providerId: string,
+    value: string,
+  ) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
 }
 
@@ -84,6 +90,8 @@ export const useSettings = (): UseSettingsReturn => {
     updatePostProcessApiFormat: store.updatePostProcessApiFormat,
     updatePostProcessApiKey: store.updatePostProcessApiKey,
     updatePostProcessModel: store.updatePostProcessModel,
+    updateTranscriptionProviderSetting:
+      store.updateTranscriptionProviderSetting,
     fetchPostProcessModels: store.fetchPostProcessModels,
   };
 };

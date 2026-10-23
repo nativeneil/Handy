@@ -400,14 +400,13 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
+        let settings = get_settings(app);
         // A cloud provider transcribes the recording; no local model needed.
-        let uses_cloud = crate::cloud_stt::uses_cloud(&get_settings(app));
+        let uses_cloud = crate::cloud_stt::uses_cloud(&settings);
 
-        // Load ASR model and VAD model in parallel
+        // Load ASR model (a no-op for cloud) and VAD model in parallel
         let kickoff_started = Instant::now();
-        if !uses_cloud {
-            tm.initiate_model_load();
-        }
+        tm.initiate_model_load();
         let rm_clone = Arc::clone(&rm);
         std::thread::spawn(move || {
             if let Err(e) = rm_clone.preload_vad() {
@@ -417,12 +416,19 @@ impl ShortcutAction for TranscribeAction {
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
-        // kicked off above fails and reports why.
-        if !uses_cloud && !tm.is_model_loaded() {
-            let selected_model = get_settings(app).selected_model;
+        // kicked off above fails and reports why. A cloud provider that can't
+        // run (no key, no endpoint) is reported now, before the user speaks.
+        if uses_cloud {
+            if let Err(e) = crate::cloud_stt::check_ready(&settings) {
+                warn!("Not starting recording: {}", e);
+                let _ = app.emit("transcription-error", e.to_string());
+                return;
+            }
+            crate::cloud_stt::prewarm(&settings);
+        } else if !tm.is_model_loaded() {
             if let Err(e) = app
                 .state::<Arc<ModelManager>>()
-                .get_model_path(&selected_model)
+                .get_model_path(&settings.selected_model)
             {
                 warn!("Not starting recording: no model can transcribe it ({})", e);
                 return;
@@ -437,7 +443,6 @@ impl ShortcutAction for TranscribeAction {
 
         // Get the microphone mode to determine audio feedback timing
         let plan_started = Instant::now();
-        let settings = get_settings(app);
         let is_always_on = settings.always_on_microphone;
 
         let selected_model_info = app

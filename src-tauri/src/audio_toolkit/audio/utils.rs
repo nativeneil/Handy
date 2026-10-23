@@ -27,24 +27,36 @@ pub fn verify_wav_file<P: AsRef<Path>>(file_path: P, expected_samples: usize) ->
     Ok(())
 }
 
+/// Handy's recording format: 16 kHz mono 16-bit PCM.
+const WAV_SPEC: WavSpec = WavSpec {
+    channels: 1,
+    sample_rate: 16000,
+    bits_per_sample: 16,
+    sample_format: hound::SampleFormat::Int,
+};
+
+fn write_wav_samples<W: std::io::Write + std::io::Seek>(
+    mut writer: WavWriter<W>,
+    samples: &[f32],
+) -> Result<()> {
+    for sample in samples {
+        // `as` saturates, so out-of-range samples clip instead of wrapping.
+        writer.write_sample((sample * i16::MAX as f32) as i16)?;
+    }
+    writer.finalize()?;
+    Ok(())
+}
+
+/// Encode audio samples as an in-memory WAV file (e.g. for upload).
+pub fn encode_wav_bytes(samples: &[f32]) -> Result<Vec<u8>> {
+    let mut cursor = std::io::Cursor::new(Vec::with_capacity(samples.len() * 2 + 44));
+    write_wav_samples(WavWriter::new(&mut cursor, WAV_SPEC)?, samples)?;
+    Ok(cursor.into_inner())
+}
+
 /// Save audio samples as a WAV file
 pub fn save_wav_file<P: AsRef<Path>>(file_path: P, samples: &[f32]) -> Result<()> {
-    let spec = WavSpec {
-        channels: 1,
-        sample_rate: 16000,
-        bits_per_sample: 16,
-        sample_format: hound::SampleFormat::Int,
-    };
-
-    let mut writer = WavWriter::create(file_path.as_ref(), spec)?;
-
-    // Convert f32 samples to i16 for WAV
-    for sample in samples {
-        let sample_i16 = (sample * i16::MAX as f32) as i16;
-        writer.write_sample(sample_i16)?;
-    }
-
-    writer.finalize()?;
+    write_wav_samples(WavWriter::create(file_path.as_ref(), WAV_SPEC)?, samples)?;
     debug!("Saved WAV file: {:?}", file_path.as_ref());
     Ok(())
 }

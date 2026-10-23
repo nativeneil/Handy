@@ -86,7 +86,8 @@
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "Własny",
@@ -117,7 +118,8 @@
     },
     "cancel": "Anuluj",
     "cancelDownload": "Anuluj pobieranie",
-    "legacy": "Przestarzałe"
+    "legacy": "Przestarzałe",
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -641,7 +643,8 @@
       "apiKey": {
         "title": "API Key",
         "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
-        "placeholder": "Enter API key"
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
       },
       "model": {
         "title": "Model",

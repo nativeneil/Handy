@@ -72,7 +72,7 @@ fn recognition_language(language: &str) -> &str {
 
 /// A tag's primary language subtag, with any BCP-47 region/script suffix
 /// dropped (`en-US` → `en`, `zh-Hant` → `zh`).
-fn base_language(language: &str) -> &str {
+pub(crate) fn base_language(language: &str) -> &str {
     language.split(&['-', '_'][..]).next().unwrap_or(language)
 }
 

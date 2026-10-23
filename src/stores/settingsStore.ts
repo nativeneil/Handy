@@ -5,6 +5,7 @@ import type {
   AppSettings as Settings,
   AudioDevice,
   PostProcessApiFormat,
+  TranscriptionProviderField,
   ChineseScript,
   TranscribeAcceleratorSetting,
   ShortcutActivation,
@@ -63,6 +64,11 @@ interface SettingsStore {
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  updateTranscriptionProviderSetting: (
+    field: TranscriptionProviderField,
+    providerId: string,
+    value: string,
+  ) => Promise<void>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
 
   // Internal state setters
@@ -201,7 +207,20 @@ const settingUpdaters: {
     commands.changeTranscribeGpuDevice(value as string | null),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
+  transcription_provider_id: async (value) => {
+    const result = await commands.setTranscriptionProvider(value as string);
+    if (result.status === "error") {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+  },
 };
+
+const TRANSCRIPTION_FIELD_SETTING = {
+  api_key: "transcription_api_keys",
+  model: "transcription_models",
+  base_url: "transcription_base_urls",
+} as const satisfies Record<TranscriptionProviderField, keyof Settings>;
 
 export const useSettingsStore = create<SettingsStore>()(
   subscribeWithSelector((set, get) => ({
@@ -476,6 +495,40 @@ export const useSettingsStore = create<SettingsStore>()(
               : null,
           }));
         }
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    // Per-provider cloud transcription settings, applied optimistically.
+    updateTranscriptionProviderSetting: async (field, providerId, value) => {
+      const { settings, setUpdating } = get();
+      const key = TRANSCRIPTION_FIELD_SETTING[field];
+      const previous = settings?.[key] ?? {};
+      const trimmed = value.trim();
+      if ((previous[providerId] ?? "") === trimmed) return;
+
+      const updateKey = `transcription_${field}:${providerId}`;
+      setUpdating(updateKey, true);
+      set((state) => ({
+        settings: state.settings
+          ? { ...state.settings, [key]: { ...previous, [providerId]: trimmed } }
+          : null,
+      }));
+      try {
+        const result = await commands.changeTranscriptionProviderSetting(
+          providerId,
+          field,
+          trimmed,
+        );
+        if (result.status === "error") throw new Error(result.error);
+      } catch (error) {
+        toast.error(String(error));
+        set((state) => ({
+          settings: state.settings
+            ? { ...state.settings, [key]: previous }
+            : null,
+        }));
       } finally {
         setUpdating(updateKey, false);
       }

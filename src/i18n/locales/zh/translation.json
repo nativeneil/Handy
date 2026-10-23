@@ -86,7 +86,8 @@
         "checkFailed": "检查权限失败。请重试。",
         "requestFailed": "请求权限失败。请重试。"
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "自定义",
@@ -117,7 +118,8 @@
     },
     "cancel": "取消",
     "cancelDownload": "取消下载",
-    "legacy": "旧版"
+    "legacy": "旧版",
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -641,7 +643,8 @@
       "apiKey": {
         "title": "API Key",
         "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
-        "placeholder": "Enter API key"
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
       },
       "model": {
         "title": "Model",

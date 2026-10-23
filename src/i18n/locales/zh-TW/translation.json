@@ -86,7 +86,8 @@
         "checkFailed": "檢查權限失敗，請重試",
         "requestFailed": "請求權限失敗，請重試"
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "自訂",
@@ -117,7 +118,8 @@
       "translate": "翻譯為英語",
       "streaming": "在您說話時即時顯示轉錄"
     },
-    "legacy": "舊版"
+    "legacy": "舊版",
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -641,7 +643,8 @@
       "apiKey": {
         "title": "API Key",
         "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
-        "placeholder": "Enter API key"
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
       },
       "model": {
         "title": "Model",

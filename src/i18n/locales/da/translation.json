@@ -86,7 +86,8 @@
         "checkFailed": "Kunne ikke tjekke tilladelser. Prøv igen.",
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
       }
-    }
+    },
+    "useCloud": "Or use a cloud transcription provider instead"
   },
   "modelSelector": {
     "custom": "Brugerdefineret",
@@ -117,7 +118,8 @@
       "translation": "Kan oversætte til engelsk",
       "translate": "Oversæt",
       "streaming": "Viser live transskription, mens du taler"
-    }
+    },
+    "cloud": "{{provider}} (cloud)"
   },
   "settings": {
     "modelSettings": {
@@ -641,7 +643,8 @@
       "apiKey": {
         "title": "API Key",
         "description": "Your {{provider}} API key. Stored in Handy's settings on this device.",
-        "placeholder": "Enter API key"
+        "placeholder": "Enter API key",
+        "placeholderOptional": "Optional"
       },
       "model": {
         "title": "Model",

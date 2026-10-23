@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ChevronDown, ChevronLeft } from "lucide-react";
-import type { ModelInfo } from "@/bindings";
+import { commands, type ModelInfo } from "@/bindings";
+import { useSettingsStore } from "../../stores/settingsStore";
 import type { ModelCardStatus } from "./ModelCard";
 import ModelCard, { isLegacySource } from "./ModelCard";
 import HandyTextLogo from "../icons/HandyTextLogo";
@@ -113,6 +114,18 @@ const Onboarding: React.FC<OnboardingProps> = ({
     t,
   ]);
 
+  // Skip the download: use the best cloud provider; the key is entered in
+  // Settings, and recording says so until it is.
+  const handleUseCloud = async () => {
+    const [first] = await commands.getCloudTranscriptionProviders();
+    if (!first) return;
+    const store = useSettingsStore.getState();
+    await store.updateSetting("transcription_provider_id", first.id);
+    if (store.getSetting("transcription_provider_id") === first.id) {
+      onModelSelected();
+    }
+  };
+
   const handleDownloadModel = async (modelId: string) => {
     if (preview) return;
 
@@ -179,6 +192,16 @@ const Onboarding: React.FC<OnboardingProps> = ({
         <p className="text-text/70 max-w-md font-medium mx-auto">
           {t("onboarding.subtitle")}
         </p>
+        {!preview && (
+          <button
+            type="button"
+            onClick={handleUseCloud}
+            disabled={isBusy}
+            className="text-sm font-medium text-text/60 hover:text-text underline underline-offset-2"
+          >
+            {t("onboarding.useCloud")}
+          </button>
+        )}
       </div>
 
       <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
