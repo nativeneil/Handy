@@ -20,6 +20,10 @@ import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ShortcutInput } from "../ShortcutInput";
+import { AlwaysPostProcess } from "../AlwaysPostProcess";
+import { ContextAwareness } from "../ContextAwareness";
+import { AppPrompts } from "../AppPrompts";
+import { type } from "@tauri-apps/plugin-os";
 import { useSettings } from "../../../hooks/useSettings";
 
 const PostProcessingSettingsApiComponent: React.FC = () => {
@@ -464,6 +468,8 @@ PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const PostProcessingSettings: React.FC = () => {
   const { t } = useTranslation();
+  // Context and per-app prompts read the frontmost app via macOS Accessibility.
+  const isMacOS = type() === "macos";
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -473,6 +479,7 @@ export const PostProcessingSettings: React.FC = () => {
           descriptionMode="tooltip"
           grouped={true}
         />
+        <AlwaysPostProcess descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.postProcessing.api.title")}>
@@ -482,6 +489,13 @@ export const PostProcessingSettings: React.FC = () => {
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingSettingsPrompts />
       </SettingsGroup>
+
+      {isMacOS && (
+        <SettingsGroup title={t("settings.postProcessing.context.title")}>
+          <ContextAwareness descriptionMode="tooltip" grouped={true} />
+          <AppPrompts descriptionMode="tooltip" grouped={true} />
+        </SettingsGroup>
+      )}
     </div>
   );
 };

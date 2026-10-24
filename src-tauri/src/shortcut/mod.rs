@@ -22,9 +22,10 @@ use tauri::{AppHandle, Emitter, Manager};
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
-    self, get_settings, AutoSubmitKey, ChineseScript, ClipboardHandling, KeyboardImplementation,
-    LLMPrompt, OverlayPosition, OverlayStyle, PasteMethod, ShortcutActivation, ShortcutBinding,
-    SoundTheme, Theme, TypingTool, VadBackend, APPLE_INTELLIGENCE_PROVIDER_ID,
+    self, get_settings, AppPromptRule, AutoSubmitKey, ChineseScript, ClipboardHandling,
+    KeyboardImplementation, LLMPrompt, OverlayPosition, OverlayStyle, PasteMethod,
+    ShortcutActivation, ShortcutBinding, Snippet, SoundTheme, Theme, TypingTool, VadBackend,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray;
 
@@ -728,6 +729,7 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
         "none" => OverlayStyle::None,
         "minimal" => OverlayStyle::Minimal,
         "live" => OverlayStyle::Live,
+        "dot" => OverlayStyle::Dot,
         other => {
             warn!("Invalid overlay style '{}', defaulting to minimal", other);
             OverlayStyle::Minimal
@@ -884,6 +886,64 @@ pub fn update_custom_words(app: AppHandle, words: Vec<String>) -> Result<(), Str
     settings.custom_words = words;
     settings::write_settings(&app, settings);
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_snippets(app: AppHandle, snippets: Vec<Snippet>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.snippets = snippets
+        .into_iter()
+        .filter(|s| !s.trigger.trim().is_empty() && !s.expansion.is_empty())
+        .collect();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_app_prompt_rules(app: AppHandle, rules: Vec<AppPromptRule>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.app_prompt_rules = rules;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_context_awareness_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.context_awareness_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_commands_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.voice_commands_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_always_post_process_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.always_post_process = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Running apps that can be given their own post-processing prompt (macOS).
+#[tauri::command]
+#[specta::specta]
+pub fn get_running_apps() -> Vec<crate::dictation_context::RunningApp> {
+    crate::dictation_context::running_apps()
 }
 
 #[tauri::command]
@@ -1252,6 +1312,11 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
     if settings.post_process_prompts.len() == original_len {
         return Err(format!("Prompt with id '{}' not found", id));
     }
+
+    // Apps that used the deleted prompt fall back to the selected one.
+    settings
+        .app_prompt_rules
+        .retain(|rule| rule.prompt_id != id);
 
     // If the deleted prompt was selected, select the first one or None
     if settings.post_process_selected_prompt_id.as_ref() == Some(&id) {

@@ -469,3 +469,94 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---- Dot overlay: a small dot beside the text field being dictated into. Its
+   halo swells with the voice (--lvl, 0..1); a ring spins while working. The
+   native window is OVERLAY_DOT_SIZE (44) square in overlay.rs — the largest
+   halo (20px × 2.1) must fit inside it. ---- */
+.dot-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.vdot {
+  --lvl: 0;
+  position: relative;
+  width: 14px;
+  height: 14px;
+}
+
+.vdot-core,
+.vdot-halo {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.vdot-core {
+  inset: 0;
+  background: var(--s-accent);
+  box-shadow:
+    0 0 0 1.5px var(--s-surface),
+    0 1px 4px rgb(0 0 0 / 0.25);
+  transform: scale(calc(1 + var(--lvl) * 0.3));
+  transition:
+    transform 80ms linear,
+    background-color 200ms ease-out;
+}
+
+.vdot-halo {
+  inset: -3px;
+  background: var(--s-accent);
+  opacity: calc(0.16 + var(--lvl) * 0.34);
+  transform: scale(calc(1 + var(--lvl) * 1.1));
+  transition:
+    transform 90ms linear,
+    opacity 90ms linear;
+}
+
+/* Arming: the mic isn't delivering samples yet. */
+.vdot.arming .vdot-core {
+  background: var(--s-muted);
+  animation: vdot-breathe 1.2s ease-in-out infinite;
+}
+.vdot.arming .vdot-halo {
+  opacity: 0;
+}
+
+/* Working: transcribing or polishing. */
+.vdot.working .vdot-core {
+  transform: scale(0.75);
+}
+.vdot.working .vdot-halo {
+  inset: -6px;
+  background: transparent;
+  border: 2px solid var(--s-accent-soft);
+  border-top-color: var(--s-accent);
+  opacity: 1;
+  transform: none;
+  animation: sspin 0.8s linear infinite;
+}
+
+@keyframes vdot-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vdot-core,
+  .vdot-halo {
+    transition: none;
+  }
+  .vdot.arming .vdot-core {
+    animation: none;
+  }
+}

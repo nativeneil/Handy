@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
+import { type } from "@tauri-apps/plugin-os";
 import type { OverlayPosition, OverlayStyle } from "@/bindings";
 
 interface ShowOverlayProps {
@@ -28,6 +29,15 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
         value: "live",
         label: t("settings.advanced.overlay.style.options.live"),
       },
+      // The dot sits beside the text field, located via macOS Accessibility.
+      ...(type() === "macos"
+        ? [
+            {
+              value: "dot",
+              label: t("settings.advanced.overlay.style.options.dot"),
+            },
+          ]
+        : []),
     ];
 
     const positionOptions = [
@@ -66,7 +76,7 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
           />
         </SettingContainer>
 
-        {selectedStyle !== "none" && (
+        {selectedStyle !== "none" && selectedStyle !== "dot" && (
           <SettingContainer
             title={t("settings.advanced.overlay.position.title")}
             description={t("settings.advanced.overlay.position.description")}
