@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import "./RecordingOverlay.css";
 import { commands, events } from "@/bindings";
 import type {
+  OverlayStyle,
   StreamPhase,
   StreamPhaseEvent,
   StreamTextEvent,
@@ -58,6 +59,8 @@ const RecordingOverlay: React.FC = () => {
   // Overlay placement (top vs bottom of the screen). The Live panel grows downward
   // from a top overlay (oldest line under the pill) and upward from a bottom one.
   const [position, setPosition] = useState<"top" | "bottom">("bottom");
+  // The dot form replaces the pill entirely; read with the placement.
+  const [overlayStyle, setOverlayStyle] = useState<OverlayStyle>("live");
   // True once live text overflows the cap. A top overlay fades its top edge only
   // while overflowing, so the resting first line stays crisp flush under the pill.
   const [overflowing, setOverflowing] = useState(false);
@@ -93,6 +96,7 @@ const RecordingOverlay: React.FC = () => {
             setPosition(
               settings.data.overlay_position === "top" ? "top" : "bottom",
             );
+            setOverlayStyle(settings.data.overlay_style ?? "live");
           }
         } catch {
           // Keep the previous/default placement if settings can't be read.
@@ -284,6 +288,28 @@ const RecordingOverlay: React.FC = () => {
       <div className="sbase-r">{showCancel && cancelBtn}</div>
     </div>
   );
+
+  // ---- Dot overlay: beside the text field; the halo follows the voice ----
+  if (overlayStyle === "dot") {
+    const dotWorking = state === "transcribing" || state === "processing";
+    const voice = levels.reduce((sum, v) => sum + v, 0) / levels.length;
+    const dotState = dotWorking ? "working" : captureReady ? "ready" : "arming";
+    return (
+      <div className={`dot-stage ov-fade ${isVisible ? "show" : ""}`}>
+        <div
+          className={`vdot ${dotState}`}
+          style={
+            {
+              "--lvl": Math.min(1, Math.pow(voice, 0.6) * 1.6),
+            } as React.CSSProperties
+          }
+        >
+          <span className="vdot-halo" />
+          <span className="vdot-core" />
+        </div>
+      </div>
+    );
+  }
 
   // ---- Live overlay: a pill that sculpts open into a panel ----
   if (state === "streaming") {

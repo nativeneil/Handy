@@ -9,6 +9,7 @@ mod chinese_script;
 pub mod cli;
 mod clipboard;
 mod commands;
+mod dictation_context;
 pub mod engine_supervisor;
 mod helpers;
 mod input;
@@ -22,6 +23,7 @@ mod secure_input;
 mod settings;
 mod shortcut;
 mod signal_handle;
+mod smart_text;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
@@ -688,6 +690,12 @@ pub fn run(cli_args: CliArgs) {
             shortcut::delete_post_process_prompt,
             shortcut::set_post_process_selected_prompt,
             shortcut::update_custom_words,
+            shortcut::update_snippets,
+            shortcut::update_app_prompt_rules,
+            shortcut::change_context_awareness_enabled_setting,
+            shortcut::change_voice_commands_enabled_setting,
+            shortcut::change_always_post_process_setting,
+            shortcut::get_running_apps,
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,
             shortcut::change_mute_while_recording_setting,

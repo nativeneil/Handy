@@ -274,7 +274,8 @@
           "options": {
             "none": "कोई नहीं",
             "minimal": "मिनिमल",
-            "live": "लाइव"
+            "live": "लाइव",
+            "dot": "Dot"
           }
         },
         "position": {
@@ -379,6 +380,20 @@
           "simplified": "सरलीकृत",
           "traditional": "पारंपरिक"
         }
+      },
+      "voiceCommands": {
+        "title": "Voice Commands",
+        "description": "Say \"new line\" or \"new paragraph\" to insert line breaks, and end with \"press enter\" to send the message after pasting."
+      },
+      "snippets": {
+        "title": "Snippets",
+        "description": "Say a trigger phrase to insert saved text, such as an address or a calendar link. Saying only the trigger inserts the text as-is; inside a longer dictation the trigger is replaced.",
+        "triggerPlaceholder": "Trigger phrase, e.g. my calendar link",
+        "expansionPlaceholder": "Text to insert",
+        "add": "Add Snippet",
+        "removeLabel": "Remove",
+        "remove": "Remove snippet \"{{trigger}}\"",
+        "duplicate": "A snippet for \"{{trigger}}\" already exists"
       }
     },
     "postProcessing": {
@@ -442,6 +457,26 @@
         "cancel": "रद्द करें",
         "selectToEdit": "जानकारी देखने और बदलाव करने के लिए, ऊपर कोई प्रॉम्प्ट चुनें.",
         "createFirst": "अपना पहला पोस्ट-प्रोसेसिंग प्रॉम्प्ट बनाने के लिए, ऊपर 'नया प्रॉम्प्ट बनाएं' पर क्लिक करें."
+      },
+      "context": {
+        "title": "Context",
+        "awareness": {
+          "title": "Context Awareness",
+          "description": "Send the app name, window title and the text around your cursor along with the transcript, so names are spelled correctly and the tone matches the conversation. Password fields are never read."
+        },
+        "always": {
+          "title": "Post-Process Every Transcription",
+          "description": "Also apply post-processing when using the main transcription shortcut, not only this one."
+        }
+      },
+      "appPrompts": {
+        "title": "Per-App Prompts",
+        "description": "Use a different prompt depending on the app you're dictating into, e.g. casual for Slack, email formatting for Mail. Other apps use the selected prompt.",
+        "selectApp": "Running app…",
+        "selectPrompt": "Prompt…",
+        "add": "Add",
+        "removeLabel": "Remove",
+        "remove": "Remove prompt for {{app}}"
       }
     },
     "history": {

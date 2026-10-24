@@ -9,6 +9,8 @@ import type {
   TranscribeAcceleratorSetting,
   ShortcutActivation,
   VadBackend,
+  Snippet,
+  AppPromptRule,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { toast } from "sonner";
@@ -141,6 +143,15 @@ const settingUpdaters: {
     commands.changeOverlayPositionSetting(value as string),
   debug_mode: (value) => commands.changeDebugModeSetting(value as boolean),
   custom_words: (value) => commands.updateCustomWords(value as string[]),
+  snippets: (value) => commands.updateSnippets(value as Snippet[]),
+  app_prompt_rules: (value) =>
+    commands.updateAppPromptRules(value as AppPromptRule[]),
+  context_awareness_enabled: (value) =>
+    commands.changeContextAwarenessEnabledSetting(value as boolean),
+  voice_commands_enabled: (value) =>
+    commands.changeVoiceCommandsEnabledSetting(value as boolean),
+  always_post_process: (value) =>
+    commands.changeAlwaysPostProcessSetting(value as boolean),
   word_correction_threshold: (value) =>
     commands.changeWordCorrectionThresholdSetting(value as number),
   paste_delay_ms: (value) =>

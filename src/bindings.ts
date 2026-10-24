@@ -320,6 +320,52 @@ async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async updateSnippets(snippets: Snippet[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_snippets", { snippets }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateAppPromptRules(rules: AppPromptRule[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_app_prompt_rules", { rules }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeContextAwarenessEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_context_awareness_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceCommandsEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_commands_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeAlwaysPostProcessSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_always_post_process_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Running apps that can be given their own post-processing prompt (macOS).
+ */
+async getRunningApps() : Promise<RunningApp[]> {
+    return await TAURI_INVOKE("get_running_apps");
+},
 /**
  * Temporarily unregister all bindings while the user is recording a
  * shortcut in the UI. This avoids firing actions while keys are recorded.
@@ -970,6 +1016,18 @@ streamTextEvent: "stream-text-event"
 /** user-defined types **/
 
 /**
+ * Uses a specific post-processing prompt when dictating into an app.
+ */
+export type AppPromptRule = { 
+/**
+ * macOS bundle identifier, e.g. `com.tinyspeck.slackmacgap`.
+ */
+bundle_id: string; 
+/**
+ * Display name, for the settings list.
+ */
+app_name: string; prompt_id: string }
+/**
  * The container-level `serde(default)` (backed by the `Default` impl below)
  * guarantees every field — including ones added in the future — falls back to
  * its `get_default_settings()` value when missing from a stored settings
@@ -1042,7 +1100,26 @@ long_form_chunking?: boolean;
  * not gated on this — that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
-overlay_style?: OverlayStyle }
+overlay_style?: OverlayStyle; 
+/**
+ * Give post-processing the app, window title and text around the cursor
+ * (macOS), so names are spelled right and tone matches the conversation.
+ */
+context_awareness_enabled?: boolean; 
+/**
+ * Spoken "new line" / "new paragraph" / trailing "press enter".
+ */
+voice_commands_enabled?: boolean; 
+/**
+ * Post-process with the main transcribe shortcut too, not only with the
+ * dedicated post-processing shortcut.
+ */
+always_post_process?: boolean; snippets?: Snippet[]; 
+/**
+ * Per-app prompt overrides. Absent in stores from before the feature; the
+ * migration then seeds the default rules and prompt presets once.
+ */
+app_prompt_rules?: AppPromptRule[] }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; gpu_devices: GpuDeviceOption[] }
@@ -1111,7 +1188,12 @@ export type OverlayPosition = "top" | "bottom"
  * `None` hides the overlay entirely. Decoupled from whether the model runs in
  * streaming mode (that is driven purely by model capability).
  */
-export type OverlayStyle = "none" | "minimal" | "live"
+export type OverlayStyle = "none" | "minimal" | "live" | 
+/**
+ * A small voice-reactive dot beside the text field being dictated into
+ * (macOS; elsewhere it follows the mouse pointer).
+ */
+"dot"
 export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
@@ -1134,6 +1216,10 @@ export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "
  * A retired ONNX model found on disk.
  */
 export type RetiredModel = { id: string; name: string; size_mb: number; replacement_repo: string }
+/**
+ * A running app the user can attach a per-app prompt to.
+ */
+export type RunningApp = { bundle_id: string; name: string }
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 
 /**
@@ -1186,6 +1272,10 @@ export type ShortcutActivation =
  */
 "hold_or_toggle"
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
+/**
+ * A spoken trigger phrase that inserts saved text.
+ */
+export type Snippet = { id: string; trigger: string; expansion: string }
 export type SoundTheme = "marimba" | "pop" | "custom"
 /**
  * Phase of the streaming overlay card, emitted to drive its UI state.

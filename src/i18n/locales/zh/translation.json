@@ -274,7 +274,8 @@
           "options": {
             "none": "无",
             "minimal": "精简",
-            "live": "实时"
+            "live": "实时",
+            "dot": "Dot"
           }
         },
         "position": {
@@ -379,6 +380,20 @@
           "simplified": "简体",
           "traditional": "繁体"
         }
+      },
+      "voiceCommands": {
+        "title": "Voice Commands",
+        "description": "Say \"new line\" or \"new paragraph\" to insert line breaks, and end with \"press enter\" to send the message after pasting."
+      },
+      "snippets": {
+        "title": "Snippets",
+        "description": "Say a trigger phrase to insert saved text, such as an address or a calendar link. Saying only the trigger inserts the text as-is; inside a longer dictation the trigger is replaced.",
+        "triggerPlaceholder": "Trigger phrase, e.g. my calendar link",
+        "expansionPlaceholder": "Text to insert",
+        "add": "Add Snippet",
+        "removeLabel": "Remove",
+        "remove": "Remove snippet \"{{trigger}}\"",
+        "duplicate": "A snippet for \"{{trigger}}\" already exists"
       }
     },
     "postProcessing": {
@@ -442,6 +457,26 @@
         "cancel": "取消",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。"
+      },
+      "context": {
+        "title": "Context",
+        "awareness": {
+          "title": "Context Awareness",
+          "description": "Send the app name, window title and the text around your cursor along with the transcript, so names are spelled correctly and the tone matches the conversation. Password fields are never read."
+        },
+        "always": {
+          "title": "Post-Process Every Transcription",
+          "description": "Also apply post-processing when using the main transcription shortcut, not only this one."
+        }
+      },
+      "appPrompts": {
+        "title": "Per-App Prompts",
+        "description": "Use a different prompt depending on the app you're dictating into, e.g. casual for Slack, email formatting for Mail. Other apps use the selected prompt.",
+        "selectApp": "Running app…",
+        "selectPrompt": "Prompt…",
+        "add": "Add",
+        "removeLabel": "Remove",
+        "remove": "Remove prompt for {{app}}"
       }
     },
     "history": {

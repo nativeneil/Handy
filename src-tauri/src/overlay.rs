@@ -2,6 +2,7 @@ use crate::input;
 use crate::settings;
 use crate::settings::{OverlayPosition, OverlayStyle};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
@@ -53,9 +54,27 @@ const OVERLAY_HEIGHT: f64 = 50.0;
 const OVERLAY_STREAM_WIDTH: f64 = 400.0;
 const OVERLAY_STREAM_HEIGHT: f64 = 120.0;
 
+// Dot overlay: a 14px dot whose halo grows with the voice; the window only
+// needs to fit the largest halo (see `.dot-stage` in RecordingOverlay.css).
+const OVERLAY_DOT_SIZE: f64 = 44.0;
+
+/// Where the dot overlay is centred (logical screen points, top-left origin),
+/// set from the dictation context when recording starts. `None` follows the
+/// mouse pointer.
+static DOT_ANCHOR: Mutex<Option<(f64, f64)>> = Mutex::new(None);
+
+/// Offset from the mouse pointer when the text field couldn't be located.
+const DOT_POINTER_OFFSET: f64 = 22.0;
+
+pub fn set_dot_anchor(anchor: Option<(f64, f64)>) {
+    *DOT_ANCHOR.lock().unwrap_or_else(|e| e.into_inner()) = anchor;
+}
+
 /// Overlay window size (logical) for a given UI state.
-fn overlay_dimensions(state: &str) -> (f64, f64) {
-    if state == "streaming" {
+fn overlay_dimensions(style: OverlayStyle, state: &str) -> (f64, f64) {
+    if style == OverlayStyle::Dot {
+        (OVERLAY_DOT_SIZE, OVERLAY_DOT_SIZE)
+    } else if state == "streaming" {
         (OVERLAY_STREAM_WIDTH, OVERLAY_STREAM_HEIGHT)
     } else {
         (OVERLAY_WIDTH, OVERLAY_HEIGHT)
@@ -248,13 +267,16 @@ fn calculate_overlay_position(
     width: f64,
     height: f64,
 ) -> Option<(f64, f64)> {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_style == OverlayStyle::Dot {
+        return calculate_dot_position(app_handle, width, height);
+    }
+
     let monitor = get_monitor_with_cursor(app_handle)?;
     let scale = monitor.scale_factor();
     let monitor_x = monitor.position().x as f64 / scale;
     let monitor_y = monitor.position().y as f64 / scale;
     let monitor_width = monitor.size().width as f64 / scale;
-
-    let settings = settings::get_settings(app_handle);
 
     let x = monitor_x + (monitor_width - width) / 2.0;
     let y = match settings.overlay_position {
@@ -275,6 +297,41 @@ fn calculate_overlay_position(
     };
 
     Some((x, y))
+}
+
+/// Top-left of the dot overlay window: centred on the anchor beside the text
+/// field, or just below-right of the pointer, kept inside the monitor it
+/// lands on.
+fn calculate_dot_position(app_handle: &AppHandle, width: f64, height: f64) -> Option<(f64, f64)> {
+    let anchor = *DOT_ANCHOR.lock().unwrap_or_else(|e| e.into_inner());
+    let (cx, cy) = match anchor {
+        Some(anchor) => anchor,
+        None => {
+            let (x, y) = input::get_cursor_position(app_handle)?;
+            (x as f64 + DOT_POINTER_OFFSET, y as f64 + DOT_POINTER_OFFSET)
+        }
+    };
+
+    let monitors = app_handle.available_monitors().ok()?;
+    let bounds = |m: &tauri::Monitor| {
+        let scale = m.scale_factor();
+        (
+            m.position().x as f64 / scale,
+            m.position().y as f64 / scale,
+            m.size().width as f64 / scale,
+            m.size().height as f64 / scale,
+        )
+    };
+    let containing = monitors
+        .iter()
+        .map(bounds)
+        .find(|(x, y, w, h)| cx >= *x && cx < x + w && cy >= *y && cy < y + h);
+    let (mut left, mut top) = (cx - width / 2.0, cy - height / 2.0);
+    if let Some((x, y, w, h)) = containing {
+        left = left.clamp(x, (x + w - width).max(x));
+        top = top.clamp(y, (y + h - height).max(y));
+    }
+    Some((left, top))
 }
 
 /// Current overlay window size in logical units (points), for repositioning
@@ -509,7 +566,8 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
 
 fn show_overlay_state_on_main(app_handle: &AppHandle, state: &str) {
     // Size the overlay for this state (compact vs. streaming), then position it.
-    let (width, height) = overlay_dimensions(state);
+    let (width, height) =
+        overlay_dimensions(settings::get_settings(app_handle).overlay_style, state);
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         // Invalidate any delayed hide still in flight from a previous session
         // (see `hide_recording_overlay`).
@@ -657,7 +715,8 @@ fn update_overlay_position_on_main(app_handle: &AppHandle) {
             } else {
                 "recording"
             };
-            let (width, height) = overlay_dimensions(state);
+            let (width, height) =
+                overlay_dimensions(settings::get_settings(app_handle).overlay_style, state);
             if let Err(error) = place_windows_overlay(app_handle, &overlay_window, width, height) {
                 log::error!("Failed to update recording overlay position: {error}");
             }

@@ -2,14 +2,18 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::VadPolicy;
+use crate::dictation_context::{self, CaptureOptions, DictationContext};
 use crate::managers::audio::{recording_error_type, AudioRecordingManager};
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::policy::{live_decode, LiveDecode, ModelTraits};
 use crate::managers::transcription::StreamWorkKind;
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    get_settings, AppSettings, LLMPrompt, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID,
+};
 use crate::shortcut;
+use crate::smart_text;
 use crate::tray::{set_tray_state, TrayIconState};
 use crate::utils::{
     self, show_processing_overlay, show_recording_overlay, show_transcribing_overlay,
@@ -31,6 +35,14 @@ const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 /// paste still finishing for an earlier session compares against it so its
 /// cleanup doesn't hide the new session's overlay or reset its tray icon.
 static RECORDING_SESSION: AtomicU64 = AtomicU64::new(0);
+
+/// Latest session whose recording stopped (or failed to start). A dictation
+/// context capture finishing after this must not show the dot overlay again.
+static LAST_STOPPED_SESSION: AtomicU64 = AtomicU64::new(0);
+
+/// Latest session whose microphone delivered samples. Lets the dot overlay,
+/// which appears only once its position is known, replay a ready cue it missed.
+static MIC_READY_SESSION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -125,7 +137,30 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
+/// The prompt for this dictation: the app's own prompt when a per-app rule
+/// matches, otherwise the selected one.
+fn resolve_prompt<'a>(
+    settings: &'a AppSettings,
+    context: Option<&DictationContext>,
+) -> Option<&'a LLMPrompt> {
+    let find = |id: &str| settings.post_process_prompts.iter().find(|p| p.id == id);
+    if let Some(prompt) =
+        smart_text::prompt_for_app(&settings.app_prompt_rules, context).and_then(find)
+    {
+        debug!("Using per-app prompt '{}'", prompt.id);
+        return Some(prompt);
+    }
+    settings
+        .post_process_selected_prompt_id
+        .as_deref()
+        .and_then(find)
+}
+
+async fn post_process_transcription(
+    settings: &AppSettings,
+    transcription: &str,
+    context: Option<&DictationContext>,
+) -> Option<String> {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
         return None;
@@ -153,33 +188,21 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         return None;
     }
 
-    let selected_prompt_id = match &settings.post_process_selected_prompt_id {
-        Some(id) => id.clone(),
-        None => {
-            debug!("Post-processing skipped because no prompt is selected");
-            return None;
-        }
+    let Some(prompt) = resolve_prompt(settings, context) else {
+        debug!("Post-processing skipped because no prompt is selected or found");
+        return None;
     };
 
-    let prompt = match settings
-        .post_process_prompts
-        .iter()
-        .find(|prompt| prompt.id == selected_prompt_id)
-    {
-        Some(prompt) => prompt.prompt.clone(),
-        None => {
-            debug!(
-                "Post-processing skipped because prompt '{}' was not found",
-                selected_prompt_id
-            );
-            return None;
-        }
-    };
-
-    if prompt.trim().is_empty() {
+    if prompt.prompt.trim().is_empty() {
         debug!("Post-processing skipped because the selected prompt is empty");
         return None;
     }
+
+    let prompt = smart_text::render_prompt_context(
+        &prompt.prompt,
+        context,
+        settings.context_awareness_enabled,
+    );
 
     debug!(
         "Starting LLM post-processing with provider '{}' (model: {})",
@@ -355,39 +378,57 @@ pub(crate) struct ProcessedTranscription {
     pub final_text: String,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    /// The speaker ended with "press enter": submit after pasting.
+    pub submit: bool,
 }
 
+/// Turns a raw transcription into the text to paste: a whole-utterance
+/// snippet short-circuits everything; otherwise spoken commands, optional LLM
+/// post-processing (with the dictation context), then inline snippets.
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
     transcription: &str,
     post_process: bool,
+    context: Option<&DictationContext>,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
+
+    if let Some(expansion) = smart_text::match_whole_snippet(transcription, &settings.snippets) {
+        debug!("Transcription matched a snippet trigger");
+        return ProcessedTranscription {
+            final_text: expansion.to_string(),
+            post_processed_text: None,
+            post_process_prompt: None,
+            submit: false,
+        };
+    }
+
     let mut final_text = transcription.to_string();
+    let mut submit = false;
+    if settings.voice_commands_enabled {
+        let commands = smart_text::apply_spoken_commands(&final_text);
+        final_text = commands.text;
+        submit = commands.submit;
+    }
+
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
 
     if post_process {
-        if let Some(processed_text) = post_process_transcription(&settings, &final_text).await {
+        if let Some(processed_text) =
+            post_process_transcription(&settings, &final_text, context).await
+        {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
-
-            if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                if let Some(prompt) = settings
-                    .post_process_prompts
-                    .iter()
-                    .find(|prompt| &prompt.id == prompt_id)
-                {
-                    post_process_prompt = Some(prompt.prompt.clone());
-                }
-            }
+            post_process_prompt = resolve_prompt(&settings, context).map(|p| p.prompt.clone());
         }
     }
 
     ProcessedTranscription {
-        final_text,
+        final_text: smart_text::expand_inline_snippets(&final_text, &settings.snippets),
         post_processed_text,
         post_process_prompt,
+        submit,
     }
 }
 
@@ -425,7 +466,7 @@ impl ShortcutAction for TranscribeAction {
         }
 
         let binding_id = binding_id.to_string();
-        RECORDING_SESSION.fetch_add(1, Ordering::SeqCst);
+        let session = RECORDING_SESSION.fetch_add(1, Ordering::SeqCst) + 1;
         let tray_started = Instant::now();
         set_tray_state(app, TrayIconState::Recording);
         let tray_elapsed = tray_started.elapsed();
@@ -434,6 +475,33 @@ impl ShortcutAction for TranscribeAction {
         let plan_started = Instant::now();
         let settings = get_settings(app);
         let is_always_on = settings.always_on_microphone;
+
+        // What is being dictated into: picks a per-app prompt, gives the LLM
+        // context, and places the dot overlay beside the text field.
+        let dot_overlay = settings.overlay_style == OverlayStyle::Dot;
+        if dot_overlay {
+            crate::overlay::set_dot_anchor(None);
+        }
+        let app_for_context = app.clone();
+        dictation_context::begin_capture(
+            session,
+            CaptureOptions {
+                include_text: settings.context_awareness_enabled,
+                include_anchor: dot_overlay,
+            },
+            move |context| {
+                if !dot_overlay || LAST_STOPPED_SESSION.load(Ordering::SeqCst) >= session {
+                    return;
+                }
+                crate::overlay::set_dot_anchor(context.anchor);
+                show_recording_overlay(&app_for_context);
+                // show-overlay resets the overlay to arming; replay the ready
+                // cue if the microphone got there first.
+                if MIC_READY_SESSION.load(Ordering::SeqCst) == session {
+                    utils::emit_recording_ready(&app_for_context);
+                }
+            },
+        );
 
         let selected_model_info = app
             .state::<Arc<ModelManager>>()
@@ -472,6 +540,8 @@ impl ShortcutAction for TranscribeAction {
         match settings.overlay_style {
             OverlayStyle::Live if model_supports_streaming => utils::show_streaming_overlay(app),
             OverlayStyle::Live | OverlayStyle::Minimal => show_recording_overlay(app),
+            // Shown by the context capture above, once its position is known.
+            OverlayStyle::Dot => {}
             OverlayStyle::None => {} // show_overlay_state no-ops on None anyway
         }
         // Everything above runs before capture can begin, so each span here is
@@ -523,6 +593,7 @@ impl ShortcutAction for TranscribeAction {
                     }
 
                     debug!("Microphone is receiving samples; recording is ready");
+                    MIC_READY_SESSION.store(session, Ordering::SeqCst);
                     utils::emit_recording_ready(&app_clone);
 
                     // The start chime is a readiness cue, so it must follow the
@@ -549,6 +620,7 @@ impl ShortcutAction for TranscribeAction {
         } else {
             // Starting failed (for example due to blocked microphone permissions).
             // Revert UI state so we don't stay stuck in the recording overlay.
+            LAST_STOPPED_SESSION.store(session, Ordering::SeqCst);
             tm.cancel_stream();
             utils::hide_recording_overlay(app);
             set_tray_state(app, TrayIconState::Idle);
@@ -581,6 +653,9 @@ impl ShortcutAction for TranscribeAction {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
+        let session = RECORDING_SESSION.load(Ordering::SeqCst);
+        LAST_STOPPED_SESSION.store(session, Ordering::SeqCst);
+
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
@@ -608,7 +683,13 @@ impl ShortcutAction for TranscribeAction {
         play_feedback_sound(app, SoundType::Stop);
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
-        let post_process = self.post_process;
+
+        // The plain shortcut also post-processes when the user made cleanup
+        // the default (Wispr-style always-on polish).
+        let post_process = self.post_process || {
+            let settings = get_settings(app);
+            settings.post_process_enabled && settings.always_post_process
+        };
         let cancel_generation = rm.cancel_generation();
 
         tauri::async_runtime::spawn(async move {
@@ -705,8 +786,19 @@ impl ShortcutAction for TranscribeAction {
                                     show_processing_overlay(&ah);
                                 }
                             }
+                            let context = tauri::async_runtime::spawn_blocking(move || {
+                                dictation_context::take(session)
+                            })
+                            .await
+                            .ok()
+                            .flatten();
                             let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
+                                process_transcription_output(
+                                    &ah,
+                                    &transcription,
+                                    post_process,
+                                    context.as_ref(),
+                                ),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await
@@ -744,6 +836,7 @@ impl ShortcutAction for TranscribeAction {
                                 let ah_clone = ah.clone();
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;
+                                let submit = processed.submit;
                                 let rm_for_paste = Arc::clone(&rm);
                                 // Taken before the paste thread exists, and so
                                 // before the next session can start.
@@ -763,7 +856,11 @@ impl ShortcutAction for TranscribeAction {
                                             return;
                                         }
 
-                                        match utils::paste(final_text, ah_clone.clone()) {
+                                        match utils::paste_with_submit(
+                                            final_text,
+                                            ah_clone.clone(),
+                                            submit,
+                                        ) {
                                             Ok(()) => debug!(
                                                 "Text pasted successfully in {:?}",
                                                 paste_time.elapsed()
